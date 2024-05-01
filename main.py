@@ -25,20 +25,21 @@ print(samples[:5])
 
 # Generating synthetic dataset
 N = 1000
-mean1 = np.array([0,0])
-mean2 = np.array([4,4])
-cov1 = np.array([[1,0], [0,1]])
-cov2 = np.array([[3,0], [0,3]])
-X = np.zeros([N, 2])
+D=2
+mean1 = np.array([-2,-2])
+mean2 = 3*np.ones(D)
+cov1 = np.eye(D)
+cov2 = np.array([[4,2], [2,2]])
+X = np.zeros([N, D])
 y = np.zeros(N)
 for i in range(N):
-    label = np.random.choice([0, 1], p = [0.5, 0.5])
+    label = np.random.choice([0, 1], p = [0.3, 0.7])
     y[i] = label
     if(label == 0):
         X[i] = np.random.multivariate_normal(mean1, cov1, 1)
     else:
         X[i] = np.random.multivariate_normal(mean2, cov2, 1)
-
+X.shape
 
 # Define function to plot samples
 def plot_samples(X, y, title):
@@ -66,10 +67,10 @@ def plot_samples(X, y, title):
     plt.grid(True)
     plt.legend()
     plt.show()
-    
 
 # Plot the training samples
 plot_samples(X, y, "Training Dataset")
+
 
 # Define the signmoid function
 def sigmoid(t):
@@ -77,10 +78,10 @@ def sigmoid(t):
 
 # Define function to compute mu( = sigmoid(x'w)) values of the data points
 def compute_mu(X, w):
-    N = X.shape[0]
+    N,D = X.shape
     mu = np.zeros(N)
     for i in range(N):
-        mu[i] = np.dot(w, X[i].reshape(2, ))
+        mu[i] = np.dot(w, X[i].reshape(D, ))
         mu[i] = sigmoid(mu[i])
         
     return mu
@@ -145,7 +146,7 @@ def grad(X, y, w, x, lamda, alpha):
 def PR_MAP(X, y, lamda, x, w_MAP, alpha):
     N, D = X.shape
     limit = 1e-12
-    w_PR_MAP = w_MAP + 1e-9 * np.ones(2)     # initialized wvery close to the MAP estimate
+    w_PR_MAP = w_MAP + 1e-9 * np.ones(D)     # initialized wvery close to the MAP estimate
     step_size = 1e-3
     cnt = 0
     while(True):
@@ -160,7 +161,7 @@ def PR_MAP(X, y, lamda, x, w_MAP, alpha):
 
 
 # Let's take a query point
-q = np.array([1,2])
+q = 2*np.ones(D)
 
 
 # Computing the PR_MAP for the query point
@@ -182,7 +183,7 @@ print("PPD variance of query point (HFL)", pred_var_hfl)
 
 # Generating testing data
 num_test = 250
-X_test = np.zeros([num_test, 2])
+X_test = np.zeros([num_test, D])
 y_test = np.zeros(num_test)
 for i in range(num_test):
     label = np.random.choice([0, 1], p = [0.5, 0.5])
@@ -227,6 +228,7 @@ lamda = 1e-6
 alpha = 1
 for i in range(num_test):
     pred_var_test_hfl[i] = compute_ppd_var_hfl(X, y, lamda, X_test[i], w_MAP, alpha)
+    print(f"Completed: {i+1}/{num_test}", end = '\r', flush = True)
 
 # Approximating the PPD p(y* = 1|X, y, x*) - HFL
 pred_var_test_hfl = np.abs(pred_var_test_hfl)
@@ -239,16 +241,15 @@ for i in range(num_test):
     for j in range(M):
         f_samples[i][j] = sigmoid(f_samples[i][j])
 
+ppd_hfl = np.mean(f_samples, axis = 1)
 
         
-ppd_hfl = np.mean(f_samples, axis = 1)
 # Computing the Binary Cross-Entropy Loss in both the cases
 loss_laplace = 0
 loss_hfl = 0
 for i in range(num_test):
     loss_laplace += y_test[i]*np.log(ppd_laplace[i]) + (1 - y_test[i])*np.log(1 - ppd_laplace[i])
     loss_hfl += y_test[i]*np.log(ppd_hfl[i]) + (1 - y_test[i])*np.log(1 - ppd_hfl[i])
-
     
 loss_laplace *= (-1/num_test)
 loss_hfl *= (-1/num_test)
@@ -278,7 +279,7 @@ for i in range(num_test):
 accuracy_laplace /= num_test
 accuracy_hfl /= num_test
 
-print("Laplace model accuracy: ", accuracy_laplace)
-print("HFL model accuracy: ", accuracy_hfl)
+print("Model accuracy (Laplace): ", accuracy_laplace * 100, "%")
+print("Model accuracy (HFL): ", accuracy_hfl * 100, "%")
 # Computing number of test points where the models differ
 print("Number of test points where the model differed in hard classification:", np.sum(np.abs(y_hfl - y_laplace)))
